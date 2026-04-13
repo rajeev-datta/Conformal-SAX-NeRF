@@ -1,6 +1,6 @@
 exp:
   expname: chest_50
-  expdir: ./logs/Lineformer/
+  expdir: ./logs/UncLineformer/
   datadir: ./data/chest_50_reassigned_train_val_cal.pickle # ./data/chest_50.pickle
 network:
   net_type: Lineformer
@@ -38,7 +38,7 @@ train:
   resume: False
   window_size: [8, 8]
   window_num: 16
-  uncertainty: False
+  uncertainty: True
 log:
   i_eval: 250  # Epoch for evaluation
   i_save: 500  # Epoch for saving

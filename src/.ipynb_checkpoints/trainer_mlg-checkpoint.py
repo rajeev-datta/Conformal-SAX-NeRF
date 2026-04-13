@@ -101,8 +101,8 @@ class Trainer:
             if self.n_fine > 0:
                 self.net_fine.load_state_dict(ckpt["network_fine"])
 
-        elif cfg["train"]["resume"] and osp.exists(self.ckptdir) and cfg["train"]["uncertainty"]:
-            # assert cfg["train"]["resume"] and osp.exists(self.ckptdir)
+        elif cfg["train"]["uncertainty"]:
+            assert cfg["train"]["resume"] and osp.exists(self.ckptdir)
             ckpt = torch.load(self.ckptdir)
             self.optimizer.load_state_dict(ckpt["optimizer"])
             missing, unexpected = self.net.load_state_dict(ckpt["network"])

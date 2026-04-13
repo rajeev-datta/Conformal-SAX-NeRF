@@ -8,7 +8,6 @@ from shutil import copyfile
 import numpy as np
 
 from .dataset import TIGREDataset as Dataset
-from .dataset import TIGREDataset_MLG as Dataset_MLG
 
 from .utils import gen_log, time2file_name
 import datetime
@@ -30,7 +29,7 @@ class Trainer:
         self.i_save = cfg["log"]["i_save"]          # epoch for saving
         self.netchunk = cfg["render"]["netchunk"]   
         self.n_rays = cfg["train"]["n_rays"]
-        self.uncertainty = cfg["train"]["uncertainty"]
+        
   
         # Log direcotry，设置实验路径和文件夹
         date_time = str(datetime.datetime.now())
@@ -46,30 +45,19 @@ class Trainer:
 
         # Dataset，读数据，dataloader
         '''
-            train_dset 的返回值: 50个字典{'projs', 'rays'}
-            train_dset[0]['projs'].shape = [1024]
-            train_dset[0]['rays'].shape = [1024,8]
-
-            目前:
-            train_dset_window[0]['projs'].shape = [32, 32]
-            train_dset_window[0]['rays'].shape = [32, 32, 8]
-            还没有被拍扁
+            eval 和 train dataset 并不相同
         '''
-        # train_dset = Dataset(cfg["exp"]["datadir"], cfg["train"]["n_rays"], "train", device) # 由dataset去构造数据集
-        train_dset = Dataset_MLG(cfg["exp"]["datadir"], cfg["train"]["n_rays"], "train", cfg["train"]["window_size"], cfg["train"]["window_num"], device) # 由dataset去构造数据集
-        # stx()
+        train_dset = Dataset(cfg["exp"]["datadir"], cfg["train"]["n_rays"], "train", device) # 由dataset去构造数据集
         self.eval_dset = Dataset(cfg["exp"]["datadir"], cfg["train"]["n_rays"], "val", device) if self.i_eval > 0 else None
-        
+        # stx()
         self.train_dloader = torch.utils.data.DataLoader(train_dset, batch_size=cfg["train"]["n_batch"]) # 官方的 data_loader 的作用知识分一个batch
         self.voxels = self.eval_dset.voxels if self.i_eval > 0 else None
-
-        print("train samples: ", len(train_dset))
-        print("val samples: ", len(self.eval_dset))
     
         # Network，实例化网络
-        network = get_network(cfg["network"]["net_type"], cfg["train"]["uncertainty"])
+        network = get_network(cfg["network"]["net_type"])
         cfg["network"].pop("net_type", None)
         encoder = get_encoder(**cfg["encoder"])
+        # stx()
         self.net = network(encoder, **cfg["network"]).to(device)
         grad_vars = list(self.net.parameters())
         self.net_fine = None
@@ -91,7 +79,7 @@ class Trainer:
 
         # Load checkpoints
         self.epoch_start = 0
-        if cfg["train"]["resume"] and osp.exists(self.ckptdir) and not cfg["train"]["uncertainty"]:
+        if cfg["train"]["resume"] and osp.exists(self.ckptdir):
             print(f"Load checkpoints from {self.ckptdir}.")
             ckpt = torch.load(self.ckptdir)
             self.epoch_start = ckpt["epoch"] + 1
@@ -100,24 +88,6 @@ class Trainer:
             self.net.load_state_dict(ckpt["network"])
             if self.n_fine > 0:
                 self.net_fine.load_state_dict(ckpt["network_fine"])
-
-        elif cfg["train"]["resume"] and osp.exists(self.ckptdir) and cfg["train"]["uncertainty"]:
-            # assert cfg["train"]["resume"] and osp.exists(self.ckptdir)
-            ckpt = torch.load(self.ckptdir)
-            self.optimizer.load_state_dict(ckpt["optimizer"])
-            missing, unexpected = self.net.load_state_dict(ckpt["network"])
-
-            print(f"Loaded checkpoint: {ckpt_path}")
-
-            if len(missing) > 0:
-                print("\nMissing keys:")
-                for k in missing:
-                    print("  ", k)
-
-            if len(unexpected) > 0:
-                print("\nUnexpected keys:")
-                for k in unexpected:
-                    print("  ", k)
 
         # Summary writer 需要用tensorboard打开来看，不如直接就txt文件记录
         self.writer = SummaryWriter(self.expdir)
@@ -213,3 +183,4 @@ class Trainer:
         Evaluation step
         """
         raise NotImplementedError()
+        

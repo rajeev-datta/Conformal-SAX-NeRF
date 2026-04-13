@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import time
 import pickle
+from PIL import Image
 
 # from src.dataset import TIGREDataset as Dataset
 
@@ -34,7 +35,7 @@ save_dir = category + '/'
 path = f'../data/{category}_50.pickle'
 
 with open(path, "rb") as handle:
-    data = pickle.load(handle)
+            data = pickle.load(handle)
 
 '''
     采用 np.rot90 和 np.flip 实现旋转和翻转
@@ -86,11 +87,50 @@ ax.set_zlim(0, CT_image.shape[2])
 alpha_axis = 0.01
 ax.set_alpha(alpha_axis)
 
+proj_num = 120
+angle_interval = 360 / proj_num
 elevation = 20
-ax.view_init(elev=elevation)
 
-# plt.savefig(f'3d_chest_{alpha}.png')
-os.makedirs(save_dir, exist_ok=True)
-plt.savefig(f'{save_dir}3d_{category}_{sigma}_{alpha}_{alpha_axis}.png')
+# series_save_dir = os.path.join(save_dir,f"elevation_{elevation}_sigma_{sigma}_alpha_{alpha}/")
+series_save_dir = os.path.join(save_dir,f"elevation_{elevation}_sigma_{sigma}_alpha_{alpha}_axisoff/")
+os.makedirs(series_save_dir, exist_ok=True)
 
-print(f"used time: {time.time()-start} s")
+img_files = []
+
+for i in tqdm(range(proj_num)):
+    angle = angle_interval * i
+    ax.view_init(elev=elevation, azim=angle)
+    ax.axis("off")
+    plt.savefig(f'{series_save_dir}angle_{angle}.png')
+    img_files.append(f'{series_save_dir}angle_{angle}.png')
+
+print(f"Rendering used time: {time.time()-start} s")
+
+
+start_2 = time.time()
+
+# 图像文件夹路径和输出 GIF 文件名
+img_folder = series_save_dir
+fps = 45
+duration = 1000 / fps
+gif_filename = os.path.join(series_save_dir, f'rotate_{category}_fps_{fps}.gif')
+box = (300, 300, 1700, 1700)
+
+
+# 打开第一张图像
+img = Image.open(img_files[0])
+
+# 创建 GIF 对象，将第一张图像作为基准帧
+gif_frames = [img.crop(box)]
+
+# 逐一添加图像帧
+for filename in tqdm(img_files[1:]):
+    img = Image.open(filename)
+    gif_frames.append(img.crop(box))
+
+
+
+# 保存 GIF 动画
+gif_frames[0].save(gif_filename, save_all=True, append_images=gif_frames[1:], duration=duration, loop=0)
+
+print(f"saving gif used time: {time.time()-start_2} s")
